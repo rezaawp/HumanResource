@@ -1,0 +1,8 @@
+{
+    "name": "HR Extension",
+    "author": "Reza Khoirul Wijaya Putra",
+    "type": "extension",
+    "version": "1.0.0",
+    "description": "An extension for Human Resource Management",
+    "require": ["RBAC"]
+}

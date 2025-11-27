@@ -74,7 +74,7 @@
                         {{ $user?->fullName() }}
                     </td>
                     <td class="sort-group">
-                        {{ $user->type->label() }}
+                        {{ $user->roles }}
                     </td>
                     @php
                         $userWordModel = \App\Domains\Entity\EntityStats::word()->forUser($user);

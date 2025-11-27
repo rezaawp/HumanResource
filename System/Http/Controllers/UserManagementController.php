@@ -27,14 +27,20 @@ class UserManagementController extends Controller {
     function index(Request $request) {
         $routeId = 210;
         $search = $request->input('search');
-            $users = $this->UserModelQuery()->where(function ($query) use ($search) {
-                $query->where('name', 'like', "%$search%")
-                    ->orWhere('surname', 'like', "%$search%")
-                    ->orWhere('email', 'like', "%$search%")
-                    ->orWhere('phone', 'like', "%$search%");
-            })->paginate(25);
+        $users = $this->UserModelQuery()->where(function ($query) use ($search) {
+            $query->where('name', 'like', "%$search%")
+                ->orWhere('surname', 'like', "%$search%")
+                ->orWhere('email', 'like', "%$search%")
+                ->orWhere('phone', 'like', "%$search%");
+        })->with('roles')->paginate(2);
 
-            return view('human-resource::user-management.index', compact('users'));
+        $users->getCollection()->transform(function ($role) {
+            // create/override attribute 'permissions' as CSV of permission names
+            $role->roles = $role->roles->pluck('label')->implode(', ');
+            return $role;
+        });
+
+        return view('human-resource::user-management.index', compact('users'));
     }
     
     function edit($id) {

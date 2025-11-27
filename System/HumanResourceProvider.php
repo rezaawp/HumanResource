@@ -11,6 +11,7 @@ use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use App\Extensions\HumanResource\System\Http\Controllers\HumanResourceController;
+// use Illuminate\Support\Facades\Blade;
 
 class HumanResourceProvider extends ServiceProvider implements UninstallExtensionServiceProviderInterface
 {
@@ -32,6 +33,7 @@ class HumanResourceProvider extends ServiceProvider implements UninstallExtensio
 
     public function registerComponents(): static
     {
+        // Blade::componentNamespace('App\Extensions\HumanResource\System\View\Components', 'human-resource');
         return $this;
     }
 

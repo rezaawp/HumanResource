@@ -66,6 +66,7 @@
                 >
                     @foreach ($roles as $role)
                         <option
+                            {{ in_array($role->name, $roleAssign) ? 'selected' : '' }}
                             value="{{ $role->name }}"
                         >
                             {{ $role->label }}
@@ -93,32 +94,60 @@
                         {{ __('Passive') }}
                     </option>
                 </x-forms.input>
+
+                <x-forms.input
+                    class:container="h-full bg-input-background border p-3 rounded"
+                    type="select"
+                    name="users[]"
+                    label="{{ __('Assign to user') }}"
+                    multiple
+                    data-tomServerSide="true"
+                    data-tomEndPoint="/api/users"
+                    data-tomValueField="id"
+                    data-tomLabelField="name"
+                    data-tomSearchField="name"
+                >
+                        @if ($userAssigned)
+                            @foreach ($selectedUsers as $userAssign)
+                            <option
+                                    selected
+                                    value="{{ $userAssign['id'] }}"
+                                >
+                                    {{ $userAssign['name'] }}
+                                </option>
+                            @endforeach
+                        @else
+
+                        @endif 
+
+                        <option
+                            value="0"
+                        >
+                            Type for result
+                        </option>
+                </x-forms.input>
+
+                <x-forms.input
+                    class:container="h-full bg-input-background border p-3 rounded"
+                    type="select"
+                    name="as_a"
+                    label="{{ __('Assign as a') }}"
+                >
+                    @foreach ($roles as $role)
+                        <option
+                            {{$role->name == $selectedAssgnAS_a ? 'selected' : ''}}
+                            value="{{ $role->name }}"
+                        >
+                            {{ $role->label }}
+                        </option>
+                    @endforeach
+                </x-forms.input>
             </div>
 
-            <div x-data="{ showContent: false }">
-                <x-button
-                    class="flex w-full items-center justify-between gap-7 py-3 text-2xs"
-                    type="button"
-                    variant="link"
-                    @click="showContent = !showContent"
-                >
-                    <span class="h-px grow bg-current opacity-10"></span>
-                    <span class="flex items-center gap-3">
-                        {{ __('Credits') }}
-                        <x-tabler-chevron-down
-                            class="size-4 transition"
-                            ::class="{ 'rotate-180': showContent }"
-                        />
-                    </span>
-                    <span class="h-px grow bg-current opacity-10"></span>
-                </x-button>
-                <div
-                    class="hidden pt-5"
-                    :class="{ hidden: !showContent }"
-                >
-                    @livewire('assign-view-credits', ['entities' => $user->entity_credits])
-                </div>
-            </div>
+            {{-- <button type="button" id="add-user-role" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded">
+                + Add User Role
+            </button> --}}
+            
 
             <x-button
                 class="w-full"

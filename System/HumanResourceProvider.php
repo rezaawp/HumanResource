@@ -90,6 +90,8 @@ class HumanResourceProvider extends ServiceProvider implements UninstallExtensio
                         $router->get('/', [\App\Extensions\HumanResource\System\Http\Controllers\UserManagementController::class, 'index'])->name('index');
                         $router->get('/{user}/edit', [\App\Extensions\HumanResource\System\Http\Controllers\UserManagementController::class, 'edit'])->name('edit');
                         $router->post('/save', [\App\Extensions\HumanResource\System\Http\Controllers\UserManagementController::class, 'usersSave'])->name('save');
+                        $router->get('/create', [\App\Extensions\HumanResource\System\Http\Controllers\UserManagementController::class, 'create'])->name('create');
+                        $router->post('/store', [\App\Extensions\HumanResource\System\Http\Controllers\UserManagementController::class, 'usersStore'])->name('store');
                     });
                 });
             });

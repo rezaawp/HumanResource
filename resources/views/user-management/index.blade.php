@@ -108,7 +108,7 @@
     </x-dropdown.dropdown>
 
     <x-button
-        href="{{ $app_is_demo ? '#' : route('dashboard.admin.users.create') }}"
+        href="{{ $app_is_demo ? '#' : route('dashboard.admin.hr.users.create') }}"
         onclick="{{ $app_is_demo ? 'return toastr.info(\'This feature is disabled in Demo version.\')' : '' }}"
         variant="primary"
     >

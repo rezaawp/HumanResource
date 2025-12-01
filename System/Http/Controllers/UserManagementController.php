@@ -2,6 +2,7 @@
 
 namespace App\Extensions\HumanResource\System\Http\Controllers;
 
+use App\Actions\EmailConfirmation;
 use App\Extensions\RBAC\System\Enum\Permissions;
 use App\Extensions\RBAC\System\Models\Role;
 use App\Extensions\RBAC\System\Models\User;
@@ -10,6 +11,14 @@ use App\Extensions\RBAC\System\Repositories\RoleRepository;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\Classes\Helper;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Enum;
+use Illuminate\Support\Str;
+use App\Enums\Roles;
+use App\Models\Plan;
 
 class UserManagementController extends Controller {
     private $menuId = 210; // ubah sesuai menu id yang benar di database
@@ -24,6 +33,11 @@ class UserManagementController extends Controller {
         return User::queryPermission($this->menuId);
     }
 
+    function create() {
+        $plans = Plan::all();
+        return view('human-resource::user-management.create', compact('plans'));
+    }
+
     function index(Request $request) {
         $routeId = 210;
         $search = $request->input('search');
@@ -32,7 +46,7 @@ class UserManagementController extends Controller {
                 ->orWhere('surname', 'like', "%$search%")
                 ->orWhere('email', 'like', "%$search%")
                 ->orWhere('phone', 'like', "%$search%");
-        })->with('roles')->paginate(2);
+        })->with('roles')->paginate(20);
 
         $users->getCollection()->transform(function ($role) {
             // create/override attribute 'permissions' as CSV of permission names
@@ -50,6 +64,8 @@ class UserManagementController extends Controller {
         $roles = $this->RoleModelQuery()->get();
 
         $roleAssign = $user->roles->pluck('name')->toArray();
+
+        $plans = Plan::all();
 
         $leaders = UserModuleAssignmentDetail::query()
             ->where('user_id', $id)->where('assigned_type', User::class)
@@ -71,7 +87,7 @@ class UserManagementController extends Controller {
         
         $selectedAssgnAS_a = $firstGroup[0]['purpose'];
         
-        return view('human-resource::user-management.edit', compact('user', 'roles', 'roleAssign', 'selectedUsers', 'userAssigned', 'selectedAssgnAS_a'));
+        return view('human-resource::user-management.edit', compact('user', 'roles', 'roleAssign', 'selectedUsers', 'userAssigned', 'selectedAssgnAS_a', 'plans'));
     }
 
     function usersSave(Request $request) {
@@ -87,8 +103,17 @@ class UserManagementController extends Controller {
             'country'                  => 'nullable',
             'type'                     => 'required|array',
             'status'                   => 'nullable|in:0,1',
-            'users'                    => 'nullable|array'
+            'users'                    => 'nullable|array',
+            'plan_id'                  => 'required|exists:plans,id'
         ]);
+
+        $plan = Plan::query()->findOrFail((int) $request->input('plan_id'));
+
+        $entities = "";
+
+        if ($plan) {
+            $entities = $plan->ai_models;
+        }
 
         $user = $this->UserModelQuery()->where(function ($query) use ($request) {
             $query->where('id', $request->user_id);
@@ -106,6 +131,8 @@ class UserManagementController extends Controller {
                 'email'   => $request->email,
                 'country' => $request->country,
                 'status'  => $request->status,
+                'plan_id' => $request->plan_id,
+                'entity_credits' => $entities
             ]);
         }
 
@@ -143,4 +170,75 @@ class UserManagementController extends Controller {
             ->with(['message' => __('Role created successfully.'), 'type' => 'success']);
     }
 
+    public function usersStore(Request $request): RedirectResponse
+    {
+        if (Helper::appIsDemo()) {
+            return back()->with(['message' => __('This feature is disabled in Demo version.'), 'type' => 'error']);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name'                     => 'required|string|max:255',
+            'surname'                  => 'required|string|max:255',
+            'email'                    => 'required|email|max:255|unique:users',
+            'password'                 => 'required|min:8',
+            'repassword'               => 'required|same:password',
+            'phone'                    => 'nullable|string|max:15',
+            'avatar'                   => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'type'                     => ['required', new Enum(Roles::class)],
+            'country'                  => 'nullable',
+            'status'                   => 'nullable|in:0,1',
+            'plan_id'                  => ['required', 'exists:plans,id']
+        ], [
+            'repassword.same' => __('The password and re-password must match.'),
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+        // $entities = $request->input('entities');
+
+        $masterPlan = Plan::query()->find($request->input('plan_id'))->firstOrFail();
+
+        if ($masterPlan)
+        {
+            $entities = $masterPlan->ai_models;
+        }
+
+        $user = User::query()->create([
+            'name'                    => $request->name,
+            'surname'                 => $request->surname,
+            'email'                   => $request->email,
+            'phone'                   => $request->phone,
+            'country'                 => $request->country,
+            'type'                    => $request->type,
+            'status'                  => $request->status,
+            'email_confirmation_code' => Str::random(67),
+            'password'                => Hash::make($request->password),
+            'email_verification_code' => Str::random(67),
+            'affiliate_code'          => Str::upper(Str::random(12)),
+        ]);
+
+        $user->updateCredits($entities);
+
+        if ($request->hasFile('avatar')) {
+            $path = 'upload/images/avatar/';
+            $image = $request->file('avatar');
+            if ($image->guessExtension() === 'svg') {
+                $image = self::sanitizeSVG($request->file('avatar'));
+            }
+            $image_name = Str::random(4) . '-' . Str::slug($user?->fullName()) . '-avatar.' . $image->guessExtension();
+            // Image extension check
+            $imageTypes = ['jpg', 'jpeg', 'png', 'svg', 'webp'];
+            if (! in_array(Str::lower($image->guessExtension()), $imageTypes)) {
+                return back()->with(['message' => __('The file extension must be jpg, jpeg, png, webp or svg.'), 'type' => 'error']);
+            }
+            $image->move($path, $image_name);
+            $user->avatar = $path . $image_name;
+            $user->save();
+        }
+
+        EmailConfirmation::forUser($user)->send();
+
+        return back()->with(['message' => __('Created Successfully'), 'type' => 'success']);
+    }
 }

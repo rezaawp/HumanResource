@@ -85,7 +85,7 @@ class UserManagementController extends Controller {
             })->toArray()
             : [];
         
-        $selectedAssgnAS_a = $firstGroup[0]['purpose'];
+        $selectedAssgnAS_a = isset($firstGroup[0]['purpose']) ? $firstGroup[0]['purpose'] : '';
         
         return view('human-resource::user-management.edit', compact('user', 'roles', 'roleAssign', 'selectedUsers', 'userAssigned', 'selectedAssgnAS_a', 'plans'));
     }
@@ -153,17 +153,19 @@ class UserManagementController extends Controller {
             
             if ($queryDataBefore->count() > 0) $queryDataBefore->delete();
 
-            foreach ($request->users as $key => $_userId) {
-                $_userId = (int) $_userId;
-                array_push($dataInsert, [
-                    'assigned_type' => $assignType,
-                    'user_id' => $userId,
-                    'assigned_id' => $_userId,
-                    'purpose' => $request->as_a  
-                ]);
-            }
+            if ($request->users) {
+                foreach ($request->users as $key => $_userId) {
+                    $_userId = (int) $_userId;
+                    array_push($dataInsert, [
+                        'assigned_type' => $assignType,
+                        'user_id' => $userId,
+                        'assigned_id' => $_userId,
+                        'purpose' => $request->as_a  
+                    ]);
+                }
 
-            DB::table((new UserModuleAssignmentDetail())->getTable())->insert($dataInsert);
+                DB::table((new UserModuleAssignmentDetail())->getTable())->insert($dataInsert);
+            }
         }
 
         return redirect()->route('dashboard.admin.hr.users.edit', ['user' => $user->id])
